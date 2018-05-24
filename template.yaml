@@ -25,6 +25,34 @@ Globals:
       Variables:
         STACKNAME: !Ref "AWS::StackName"
 Resources:
+  ApiGatewayApi:  # Generally unnessesary for development
+    # Resouce only here to allow APIKEY requirement
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:  # Generate with console
+        swagger: 2.0
+        info:
+          title:
+            Ref: AWS::StackName
+        securityDefinitions:
+          api_key:
+            type: "apiKey"
+            name: "x-api-key"
+            in: "header"
+        paths:
+          /bet/ping:
+            get:
+              responses: {}
+              security:
+              - api_key: []
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ping.Arn}/invocations
+              responses: {}
+
   ping:
     Type: AWS::Serverless::Function
     Properties:
@@ -36,8 +64,11 @@ Resources:
         Endpoint:
           Type: Api
           Properties:
+            RestApiId: !Ref ApiGatewayApi
             Path: /bet/ping
             Method: GET
+
+  # Data Tables
   StageData:
     Type: AWS::Serverless::SimpleTable
     Properties:
@@ -51,13 +82,14 @@ Resources:
       Tags:
         StackName: !Sub "${AWS::StackName}"
 Outputs:
-  LEDApiURL:
+  ApiURL:
     Description: API endpoint URL for LED
     Export:
       Name: !Sub "${AWS::StackName}-Endpoint"
     Value: !Join
-      - '.'
-      - - !Sub "https://${ServerlessRestApi}"
-        - execute-api
-        - !Ref AWS::Region
-        - amazonaws.com/Prod
+      - ''
+      - - https://
+        - !Ref ApiGatewayApi
+        - '.execute-api.'
+        - !Ref 'AWS::Region'
+        - '.amazonaws.com/Prod'
