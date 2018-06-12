@@ -2,20 +2,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Basic API - Lambda and Dynamodb using SAM
-Parameters:
-  ReadCapacityUnits:
-    Description: Provisioned read throughput
-    Type: Number
-    Default: '5'
-    MinValue: '5'
-    MaxValue: '10000'
-    ConstraintDescription: must be between 5 and 10000
-  WriteCapacityUnits:
-    Description: Provisioned write throughput
-    Type: Number
-    Default: '10'
-    MinValue: '5'
-    MaxValue: '10000'
 Globals:
   Function:
     Runtime: python3.6
@@ -25,71 +11,10 @@ Globals:
       Variables:
         STACKNAME: !Ref "AWS::StackName"
 Resources:
-  ApiGatewayApi:  # Generally unnessesary for development
-    # Resouce only here to allow APIKEY requirement
-    Type: AWS::Serverless::Api
-    Properties:
-      StageName: Prod
-      DefinitionBody:  # Generate with console
-        swagger: 2.0
-        info:
-          title:
-            Ref: AWS::StackName
-        securityDefinitions:
-          api_key:
-            type: "apiKey"
-            name: "x-api-key"
-            in: "header"
-        paths:
-          /bet/ping:
-            get:
-              responses: {}
-              security:
-              - api_key: []
-              x-amazon-apigateway-integration:
-                httpMethod: POST
-                type: aws_proxy
-                uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ping.Arn}/invocations
-              responses: {}
-
   ping:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lambdas/
       Handler: ping.main
       AutoPublishAlias: dev
-      Role: <existing_role>   # So that deployment agent doesn't need Iam permissions
-      Events:
-        Endpoint:
-          Type: Api
-          Properties:
-            RestApiId: !Ref ApiGatewayApi
-            Path: /bet/ping
-            Method: GET
-
-  # Data Tables
-  StageData:
-    Type: AWS::Serverless::SimpleTable
-    Properties:
-      TableName: !Sub "${AWS::StackName}-StageData"
-      PrimaryKey:
-        Name: id
-        Type: String
-      ProvisionedThroughput:
-        ReadCapacityUnits: !Ref 'ReadCapacityUnits'
-        WriteCapacityUnits: !Ref 'WriteCapacityUnits'
-      Tags:
-        StackName: !Sub "${AWS::StackName}"
-Outputs:
-  ApiURL:
-    Description: API endpoint URL for LED
-    Export:
-      Name: !Sub "${AWS::StackName}-Endpoint"
-    Value: !Join
-      - ''
-      - - https://
-        - !Ref ApiGatewayApi
-        - '.execute-api.'
-        - !Ref 'AWS::Region'
-        - '.amazonaws.com/Prod'
+      #Role: <existing_role>   # So that deployment agent doesn't need Iam permissions
