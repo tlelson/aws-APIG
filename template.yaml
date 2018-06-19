@@ -31,28 +31,17 @@ Resources:
       CodeUri: lambdas/
       Handler: ping.main
       AutoPublishAlias: dev
-      Role: <existing_role>   # So that deployment agent doesn't need Iam permissions
       Events:
         Endpoint:
           Type: Api
           Properties:
-            Path: /bet/ping
+            Path: /ping
             Method: GET
-  StageData:
+  Table:
     Type: AWS::Serverless::SimpleTable
-    Properties:
-      TableName: !Sub "${AWS::StackName}-StageData"
-      PrimaryKey:
-        Name: id
-        Type: String
-      ProvisionedThroughput:
-        ReadCapacityUnits: !Ref 'ReadCapacityUnits'
-        WriteCapacityUnits: !Ref 'WriteCapacityUnits'
-      Tags:
-        StackName: !Sub "${AWS::StackName}"
 Outputs:
-  LEDApiURL:
-    Description: API endpoint URL for LED
+  ApiURL:
+    Description: API endpoint URL
     Export:
       Name: !Sub "${AWS::StackName}-Endpoint"
     Value: !Join
