@@ -5,6 +5,8 @@ logger.setLevel(logging.INFO)
 
 
 def main(event, context):
+    logger.info(f"Event: {json.dumps(event)}")
+
     response = {
         "statusCode": 200,
         "body": {
@@ -15,4 +17,3 @@ def main(event, context):
 
     response["body"] = json.dumps(response["body"])
     return response
-
