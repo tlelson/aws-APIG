@@ -23,8 +23,12 @@ aws cloudformation deploy \
 ```
 
 Check the stack exports for the API URL
-```
+```bash
 curl ${ENDPOINT_URL}/ping
-{"message": "pong", "response": {}}
+{"message":"Forbidden"}         # 403
 ```
 
+```bash
+curl -H "x-api-key:<key_here>" ${ENDPOINT_URL}/ping
+{"message": "pong", "response": {}}
+```

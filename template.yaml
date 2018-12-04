@@ -20,16 +20,54 @@ Resources:
         info:
           title:
             Ref: AWS::StackName
+        securityDefinitions:
+          api_key:
+            type: "apiKey"
+            name: "x-api-key"
+            in: "header"
         paths:
           /ping:
             get:
               responses: {}
+              security:
+                - api_key: []
               x-amazon-apigateway-integration:
                 uri:
                   Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ping.Alias}/invocations
                 passthroughBehavior: "when_no_match"
                 httpMethod: "POST"
                 type: "aws_proxy"
+  APIKey1:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn:
+      - ApiGatewayApi
+    Properties:
+      Description: APIKey to restrict/throttle access
+      Name: !Sub ${AWS::StackName}-APIKey1
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref ApiGatewayApi
+          StageName: !Ref ApiGatewayApi.Stage
+  BaseUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      ApiStages:
+      - ApiId: !Ref ApiGatewayApi
+        Stage: !Ref ApiGatewayApi.Stage
+      Description: Base usage plan
+      Quota:
+        Limit: 5000
+        Period: MONTH
+      Throttle:
+        BurstLimit: 200
+        RateLimit: 100
+      UsagePlanName: BaseUsagePlan
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref APIKey1
+      KeyType: API_KEY
+      UsagePlanId: !Ref BaseUsagePlan
   ping:
     Type: AWS::Serverless::Function
     Properties:
