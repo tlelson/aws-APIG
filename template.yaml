@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Basic API - Lambda and Dynamodb using SAM
+Description: Basic API - with AWS Cognito Authorizer
 Globals:
   Function:
     Runtime: python3.6
@@ -11,6 +11,52 @@ Globals:
       Variables:
         STACKNAME: !Ref "AWS::StackName"
 Resources:
+  appClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref userPool
+      ExplicitAuthFlows:
+        - ADMIN_NO_SRP_AUTH
+        - USER_PASSWORD_AUTH
+      GenerateSecret: false
+  userPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolTags:
+        StackName: !Ref "AWS::StackName"
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+  ApiGatewayApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: !Ref AWS::StackName
+        paths:
+          /ping:
+            get:
+              responses: {}
+              security:
+              - testCogAuthoriser: []
+              x-amazon-apigateway-integration:
+                uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ping.Alias}/invocations
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                type: "aws_proxy"
+        securityDefinitions:
+          testCogAuthoriser:
+            type: "apiKey"
+            name: "Authorization"
+            in: "header"
+            x-amazon-apigateway-authtype: "cognito_user_pools"
+            x-amazon-apigateway-authorizer:
+              providerARNs:
+                - !GetAtt userPool.Arn
+              type: "cognito_user_pools"
   ping:
     Type: AWS::Serverless::Function
     Properties:
@@ -21,18 +67,33 @@ Resources:
         Endpoint:
           Type: Api
           Properties:
+            RestApiId: !Ref ApiGatewayApi
             Path: /ping
             Method: GET
   Table:
     Type: AWS::Serverless::SimpleTable
 Outputs:
+  appClientId:
+    Export:
+      Name: !Sub "${AWS::StackName}-appClientId"
+    Value: !Ref appClient
+  userPoolId:
+    Export:
+      Name: !Sub "${AWS::StackName}-userPoolId"
+    Value: !Ref userPool
+  userPoolArn:
+    Export:
+      Name: !Sub "${AWS::StackName}-userPoolArn"
+    Value: !GetAtt userPool.Arn
   ApiURL:
     Description: API endpoint URL
     Export:
       Name: !Sub "${AWS::StackName}-Endpoint"
     Value: !Join
-      - '.'
-      - - !Sub "https://${ServerlessRestApi}"
-        - execute-api
-        - !Ref AWS::Region
-        - amazonaws.com/Prod
+      - ''
+      - - https://
+        - !Ref ApiGatewayApi
+        - '.execute-api.'
+        - !Ref 'AWS::Region'
+        - '.amazonaws.com/'
+        - !Ref ApiGatewayApi.Stage
