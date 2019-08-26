@@ -1,98 +1,40 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Basic API - Lambda and Dynamodb using SAM
+Description: Cashflow Model endpoint
 Globals:
   Function:
     Runtime: python3.6
-    Timeout: 5
+    Timeout: 300
     MemorySize: 128
     Environment:
       Variables:
         STACKNAME: !Ref "AWS::StackName"
 Resources:
-  ApiGatewayApi:
-    Type: AWS::Serverless::Api
+  ModelLayer:
+    Type: 'AWS::Serverless::LayerVersion'
     Properties:
-      StageName: Prod
-      DefinitionBody:
-        swagger: "2.0"
-        info:
-          title:
-            Ref: AWS::StackName
-        securityDefinitions:
-          api_key:
-            type: "apiKey"
-            name: "x-api-key"
-            in: "header"
-        paths:
-          /ping:
-            get:
-              responses: {}
-              security:
-                - api_key: []
-              x-amazon-apigateway-integration:
-                uri:
-                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ping.Alias}/invocations
-                passthroughBehavior: "when_no_match"
-                httpMethod: "POST"
-                type: "aws_proxy"
-  APIKey1:
-    Type: AWS::ApiGateway::ApiKey
-    DependsOn:
-      - ApiGatewayApi
-    Properties:
-      Description: APIKey to restrict/throttle access
-      Name: !Sub ${AWS::StackName}-APIKey1
-      Enabled: true
-      StageKeys:
-        - RestApiId: !Ref ApiGatewayApi
-          StageName: !Ref ApiGatewayApi.Stage
-  BaseUsagePlan:
-    Type: AWS::ApiGateway::UsagePlan
-    Properties:
-      ApiStages:
-      - ApiId: !Ref ApiGatewayApi
-        Stage: !Ref ApiGatewayApi.Stage
-      Description: Base usage plan
-      Quota:
-        Limit: 5000
-        Period: MONTH
-      Throttle:
-        BurstLimit: 200
-        RateLimit: 100
-      UsagePlanName: BaseUsagePlan
-  UsagePlanKey:
-    Type: AWS::ApiGateway::UsagePlanKey
-    Properties:
-      KeyId: !Ref APIKey1
-      KeyType: API_KEY
-      UsagePlanId: !Ref BaseUsagePlan
-  ping:
+      LayerName: TealLambda-Python36-StatsModel
+      ContentUri: pd_sm_layer
+      Description: Layer for modeling function
+      CompatibleRuntimes:
+        - python3.6
+      RetentionPolicy: Delete
+  cashflowmodel:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Sub "${AWS::StackName}-cashflowmodel"
       CodeUri: lambdas/
-      Handler: ping.main
+      Handler: cashflowmodel.main
       AutoPublishAlias: dev
-      Events:
-        Endpoint:
-          Type: Api
-          Properties:
-            RestApiId: !Ref ApiGatewayApi
-            Path: /ping
-            Method: GET
-  Table:
-    Type: AWS::Serverless::SimpleTable
+      Layers:
+        # Use AWS Numpy lambda
+        - arn:aws:lambda:ap-southeast-2:817496625479:layer:AWSLambda-Python36-SciPy1x:2
+        - !Ref ModelLayer
+
 Outputs:
-  ApiURL:
-    Description: API endpoint URL
+  cashflowmodelARN:
+    Description: Lambda ARN to call model via
     Export:
-      Name: !Sub "${AWS::StackName}-Endpoint"
-    Value: !Join
-      - '.'
-      - - "https://"
-        - !Ref ApiGatewayApi
-        - execute-api
-        - !Ref AWS::Region
-        - amazonaws.com/
-        - !Ref ApiGatewayApi.Stage
+      Name: !Sub "${AWS::StackName}-cashflowmodelARN"
+    Value: !GetAtt cashflowmodel.Arn
