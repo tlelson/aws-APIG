@@ -10,11 +10,11 @@ Create this separate so that an agent can be used to deploy the project without 
 
 ## Deployment
 ```bash
-ARTIFACT_BUCKET=<your_existing_bucket>
+ARTIFACT_BUCKET=telson-lambda-bucket2
 aws cloudformation package \
     --template-file template.yaml \
     --s3-bucket ${ARTIFACT_BUCKET} \
-    --s3-prefix <subfolderpath>  \
+    --s3-prefix js-api  \
     --output-template /tmp/packaged.yaml
 aws cloudformation deploy \
     --capabilities CAPABILITY_IAM \
@@ -24,6 +24,7 @@ aws cloudformation deploy \
 
 Check the stack exports for the API URL
 ```
+ENDPOINT_URL=https://sc7dul68y0.execute-api.ap-southeast-2.amazonaws.com/Prod
 curl ${ENDPOINT_URL}/ping
 {"message": "pong", "response": {}}
 ```

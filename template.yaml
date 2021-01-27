@@ -4,7 +4,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: Basic API - Lambda and Dynamodb using SAM
 Globals:
   Function:
-    Runtime: python3.6
+    Runtime: nodejs12.x
     Timeout: 5
     MemorySize: 128
     Environment:
@@ -15,7 +15,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: lambdas/
-      Handler: ping.main
+      Handler: ping.handler
       AutoPublishAlias: dev
       Events:
         Endpoint:

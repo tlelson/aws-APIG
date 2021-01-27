@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "pretty": true,
+    "target": "esnext",
+    "module": "commonjs",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "baseUrl": "./",
+    "paths": { "src/*": ["src/*"], "test/*": ["test/*"] },
+    "allowSyntheticDefaultImports": true,
+    "exclude": ["node_modules"]
+}
