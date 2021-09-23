@@ -11,6 +11,80 @@ Globals:
       Variables:
         STACKNAME: !Ref "AWS::StackName"
 Resources:
+  ApiGatewayApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          title:
+            Ref: AWS::StackName
+        paths:
+          /ping/{msg}:
+            get:
+              summary: ping me!
+              parameters:
+                - name: msg
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '500':
+                  description: Server Error
+                  # headers:
+                    # error_type:
+                      # schema:
+                        # type: string
+                '200':
+                  description: Execution status
+                  content:
+                    application/json:
+                      schema:
+                        type: object  # Attn: For documention this should be a $ref to a schema
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ping.Alias}/invocations
+                passthroughBehavior: never
+                httpMethod: POST
+                type: aws
+                responses:
+                  default:
+                    statusCode: 200
+                    responseTemplates:
+                      application/json: |
+                        #set($inputData = $input.path('$'))
+                        #if($inputData.statusCode > 0)
+                        #set($context.responseOverride.status = $inputData.statusCode)
+                        #end
+                        #if($inputData.data != '')
+                        $inputData.data
+                        #else
+                        $inputData
+                        #end
+                  .+:
+                    statusCode: 500
+                    # responseParameters:
+                      # method.response.header.error_type: integration.response.body.errorType
+                    responseTemplates:
+                      application/json: |
+                        #set($errorType = $input.path('$.errorType'))
+                        #if($errorType == 'HTTPError')
+                        #set($httpError = $util.parseJson($input.path('$.errorMessage')))
+                        #set($context.responseOverride.status = $httpError.statusCode)
+                        {"errorMessage": $httpError.data}
+                        #else
+                        {"errorMessage": $input.path('$.errorMessage'), "rawError": true}
+                        #end
+                requestTemplates:
+                  application/json: |
+                    {
+                        "action": "ping",
+                        "details": {
+                            "msg": "$util.escapeJavaScript($input.params('msg')).replaceAll("\\'","'")"
+                        }
+                    }
   ping:
     Type: AWS::Serverless::Function
     Properties:
@@ -21,18 +95,12 @@ Resources:
         Endpoint:
           Type: Api
           Properties:
-            Path: /ping
+            RestApiId: !Ref ApiGatewayApi
+            Path: /ping/{msg}
             Method: GET
-  Table:
-    Type: AWS::Serverless::SimpleTable
 Outputs:
   ApiURL:
     Description: API endpoint URL
     Export:
       Name: !Sub "${AWS::StackName}-Endpoint"
-    Value: !Join
-      - '.'
-      - - !Sub "https://${ServerlessRestApi}"
-        - execute-api
-        - !Ref AWS::Region
-        - amazonaws.com/Prod
+    Value: !Sub https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiGatewayApi.Stage}

@@ -10,21 +10,37 @@ Create this separate so that an agent can be used to deploy the project without 
 
 ## Deployment
 ```bash
-ARTIFACT_BUCKET=<your_existing_bucket>
-aws cloudformation package \
+aws --profile personal s3 ls
+ARTIFACT_BUCKET=telson-lambda-bucket2
+STACKNAME='apidemo'
+aws --profile personal cloudformation package \
     --template-file template.yaml \
     --s3-bucket ${ARTIFACT_BUCKET} \
-    --s3-prefix <subfolderpath>  \
+    --s3-prefix ${STACKNAME}  \
     --output-template /tmp/packaged.yaml
-aws cloudformation deploy \
+aws --profile personal cloudformation deploy \
     --capabilities CAPABILITY_IAM \
     --template-file /tmp/packaged.yaml \
-    --stack-name my-API-dev
+    --stack-name ${STACKNAME}
+    
+aws --profile personal --output text cloudformation describe-stack-events \
+     --stack-name ${STACKNAME} --max-items 50 | grep FAILED
+
 ```
 
-Check the stack exports for the API URL
+
+Check the stack exports for the API URL and see the template output in action.
 ```
-curl ${ENDPOINT_URL}/ping
-{"message": "pong", "response": {}}
+ENDPOINT_URL=$(aws --profile personal cloudformation list-exports --output text \
+    --query 'Exports[?Name==`apidemo-Endpoint`].Value') 
+echo $ENDPOINT_URL
+curl ${ENDPOINT_URL}/ping/toto -sSL -D - 
+curl ${ENDPOINT_URL}/ping/200 -sSL -D - 
+curl ${ENDPOINT_URL}/ping/201 -sSL -D - 
+curl ${ENDPOINT_URL}/ping/404 -sSL -D - 
 ```
 
+Delete the stack
+```
+aws --profile personal cloudformation delete-stack --stack-name $STACKNAME
+```
