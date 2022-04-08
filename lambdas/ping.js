@@ -1,6 +1,7 @@
 const AWS = require('aws-sdk')
 // Create client outside of handler to reuse
 const lambda = new AWS.Lambda()
+const dynamodb = new AWS.DynamoDB()
 
 // Handler
 exports.handler = async function(event, context) {
